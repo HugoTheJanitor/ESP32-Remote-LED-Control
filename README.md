@@ -1,164 +1,144 @@
 # ESP32 Remote LED Control
 
-A simple IoT project that allows four physical LEDs connected to an ESP32 to be controlled remotely through a web interface.
-
-The ESP32 connects to Wi-Fi, periodically requests the current LED states from a Flask server over HTTPS, and updates the GPIO outputs accordingly.
-
-## Project photo
+A beginner IoT project for remotely controlling four physical LEDs connected to an ESP32 over the Internet.
 
 ![Project photo](Photos/PhotoOfProject.jpg)
 
-## Hardware
+## What the project does
 
-- ESP32-WROOM-32E development board
-- 4 LEDs: red, green, blue and yellow
-- 4 × 330 Ω resistors
-- Breadboard
-- Jumper wires
-- USB cable or power bank
-
-## GPIO connections
-
-| LED | ESP32 GPIO |
-| --- | ---: |
-| Red | 18 |
-| Green | 19 |
-| Blue | 21 |
-| Yellow | 23 |
-
-Each LED is connected through a 330 Ω resistor. The cathodes are connected to GND.
-
-## ESP32-WROOM-32E pinout
-
-![ESP32-WROOM-32E pinout](Photos/ESP32%20WROOM%2032E%20PinOut.png)
-
-Official ESP32-WROOM-32E datasheet and pin descriptions:
-
-https://documentation.espressif.com/esp32-wroom-32e_esp32-wroom-32ue_datasheet_en.html
-
-The datasheet contains the module pin layout, GPIO descriptions, peripheral functions, electrical characteristics and other hardware information.
-
-## How it works
+A browser changes LED states on a small Flask web server. The ESP32 connects to Wi-Fi and polls the server over HTTPS approximately once per second. The server returns four values such as `1,0,1,0`, and the ESP32 converts them into GPIO HIGH/LOW states.
 
 ```text
 Phone / PC
     |
     | HTTPS
     v
-Public ngrok URL
+ngrok public URL
     |
     v
-Flask server on PC
+Flask server
     ^
     | HTTPS GET /status
     |
-ESP32 connected to Wi-Fi
-    |
-    v
-GPIO 18 / 19 / 21 / 23
-    |
-    v
-4 LEDs
+ESP32 -> GPIO -> LEDs
 ```
 
-The Flask server stores the current state of the four LEDs.
+ngrok is used to expose the local Flask server to the Internet, allowing the ESP32 and controlling browser to be on different networks.
 
-For example:
+## Hardware
+
+- ESP32-WROOM-32E development board
+- Red, green, blue and yellow LEDs
+- 4 × 330 Ω resistors
+- Breadboard and jumper wires
+- USB cable or power bank
+
+| LED | GPIO |
+| --- | ---: |
+| Red | 18 |
+| Green | 19 |
+| Blue | 21 |
+| Yellow | 23 |
+
+## Pinout
+
+![ESP32-WROOM-32E pinout](Photos/ESP32%20WROOM%2032E%20PinOut.png)
+
+ESP32-WROOM-32E documentation and pin descriptions:
+
+https://documentation.espressif.com/esp32-wroom-32e_esp32-wroom-32ue_datasheet_en.html
+
+## Repository structure
 
 ```text
-1,0,1,0
+ArduinoIDE/
+  ESP32_Remote_LED_Control/
+    ESP32_Remote_LED_Control.ino
+
+VisualStudioCode/
+  ESP32_Remote_LED_Control/
+    src/
+      main.cpp
+    platformio.ini
+
+Server/
+  app.py
+  templates/
+    index.html
+
+Photos/
+  PhotoOfProject.jpg
+  ESP32 WROOM 32E PinOut.png
 ```
 
-means:
+The Arduino IDE and Visual Studio Code versions use the same Arduino framework and the same ESP32 logic. The Visual Studio Code version is configured for PlatformIO.
 
-- Red: ON
-- Green: OFF
-- Blue: ON
-- Yellow: OFF
+## Configuration
 
-The ESP32 requests `/status` approximately once per second, parses the response, and sets the corresponding GPIO pins HIGH or LOW.
-
-## ESP32 firmware
-
-The firmware uses:
-
-- `WiFi.h`
-- `HTTPClient.h`
-- `WiFiClientSecure.h`
-
-Before uploading the sketch, set the Wi-Fi credentials for the network that the ESP32 should connect to:
+No personal Wi-Fi credentials or private server addresses are stored in this repository. The firmware contains placeholders:
 
 ```cpp
 const char* SSID = "YOUR_WIFI_NAME";
 const char* PASSWORD = "YOUR_WIFI_PASSWORD";
+
+const char* SERVER_URL =
+  "https://YOUR-NGROK-DOMAIN.ngrok-free.dev/status";
 ```
 
-Do not commit real Wi-Fi credentials to a public repository.
+Replace these locally before uploading the firmware. Do not commit your real Wi-Fi password.
 
-The ESP32 communicates with the remote server using the public HTTPS endpoint:
+## Arduino IDE
 
-```cpp
-const char* SERVER_URL = "https://YOUR-NGROK-DOMAIN/status";
-```
+Install `esp32 by Espressif Systems`, select `ESP32 Dev Module`, open the sketch from the `ArduinoIDE` folder, enter your local configuration, select the correct COM port and upload it.
 
-## Server
+## Visual Studio Code
 
-The web server is implemented with Flask.
+Install Visual Studio Code and PlatformIO, open `VisualStudioCode/ESP32_Remote_LED_Control`, enter your local Wi-Fi and ngrok values in `src/main.cpp`, then build and upload using PlatformIO.
 
-Typical routes are:
+## Flask server and ngrok
 
-```text
-/                 Web interface
-/toggle/<color>   Toggle one LED
-/status           Get all LED states
-/status/<color>   Get one LED state
-```
-
-The development version can be started with:
+Install Flask:
 
 ```powershell
-python app.py
+pip install flask
 ```
 
-Then expose port 5000 through ngrok:
+Start the local server:
+
+```powershell
+python Server/app.py
+```
+
+It listens on port 5000. In another terminal expose it with ngrok:
 
 ```powershell
 ngrok http 5000
 ```
 
-The public ngrok URL can then be opened from another network or from mobile data.
+ngrok will display a public HTTPS address. Put that address plus `/status` into `SERVER_URL` in your local ESP32 firmware.
 
-## Remote operation
+Example only:
 
-The ESP32 and the device controlling it do not need to be on the same Wi-Fi network.
-
-For example:
-
-```text
-ESP32 -> Mentor's Wi-Fi -> Internet -> Flask server
-Phone -> Mobile Internet -> Internet -> Flask server
+```cpp
+const char* SERVER_URL =
+  "https://example.ngrok-free.dev/status";
 ```
 
-As long as both sides have Internet access and the server is running, the LEDs can be controlled remotely.
+The real ngrok domain is intentionally not committed to the repository.
 
-## Arduino IDE setup
+## Server API
 
-Install the ESP32 board package by Espressif Systems and select:
+- `/` — web control page
+- `/toggle/<color>` — toggles one LED
+- `/status` — returns all LED states
+- `/status/<color>` — returns one LED state
 
-```text
-ESP32 Dev Module
-```
+The order returned by `/status` is red, green, blue, yellow.
 
-Then select the correct COM port and upload the sketch.
+## Security note
 
-After the firmware has been uploaded, Arduino IDE does not need to remain open. The ESP32 stores the firmware in flash memory and starts it automatically whenever power is applied.
-
-## Notes
-
-This project is intended as a learning prototype for Wi-Fi networking, HTTP/HTTPS communication, GPIO control and basic IoT architecture.
-
-For a production deployment, certificate validation, authentication, a persistent server deployment and stronger secret management should be added.
+`client.setInsecure()` disables TLS certificate verification. It is convenient for this learning prototype but should be replaced with proper certificate validation in a production system.
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License.
