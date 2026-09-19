@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ESP32 LED Control</title>
+</head>
+<body>
+  <h1>ESP32 Remote LED Control</h1>
+  <button onclick="toggleLed('red')">Red</button>
+  <button onclick="toggleLed('green')">Green</button>
+  <button onclick="toggleLed('blue')">Blue</button>
+  <button onclick="toggleLed('yellow')">Yellow</button>
+  <p id="status">Loading...</p>
+
+  <script>
+    async function toggleLed(color) {
+      await fetch('/toggle/' + color);
+      await updateStatus();
+    }
+
+    async function updateStatus() {
+      const response = await fetch('/status');
+      document.getElementById('status').textContent = await response.text();
+    }
+
+    setInterval(updateStatus, 1000);
+    updateStatus();
+  </script>
+</body>
+</html>
